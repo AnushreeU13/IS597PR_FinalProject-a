@@ -13,7 +13,7 @@ from gen_circuit_details import circuit_dict as circuit_dict
 
 
 # PERT function to generate sample
-def pert_sample(min_val, mode_val, max_val):
+def pert_sample(best_case, most_likely, worst_case):
     """
     Generates a sample using PERT .
     TODO: can you provide citations for the above formulas?
@@ -26,12 +26,12 @@ def pert_sample(min_val, mode_val, max_val):
     >>> 0.4 <= s <= 1.0
     True
     """
-    if not (min_val <= mode_val <= max_val):
+    if not (best_case <= most_likely <= worst_case):
         raise ValueError("Invalid PERT parameters")
-    alpha  = 4 * (mode_val - min_val) / (max_val - min_val) + 1
-    beta   = 4 * (max_val - mode_val) / (max_val - min_val) + 1
+    alpha  = 4 * (most_likely - best_case) / (worst_case - best_case) + 1
+    beta   = 4 * (worst_case - most_likely) / (worst_case - best_case) + 1
     sample = random.betavariate(alpha, beta)
-    return min_val + sample * (max_val - min_val)
+    return best_case + sample * (worst_case - best_case)
 
 """
 #Calculate distance between 2 points
@@ -86,19 +86,19 @@ def simulate_breakdown(mode="road"):
         breakdown_prob = 0.02
         worst, highly_likely, best = 12, 3, 2  # hours - order is confusing
     elif mode == "air":
-        breakdown_prob = 0.02
+        breakdown_prob = 0.001
         worst, highly_likely, best = 12, 4, 3  # hours
     else:
         raise ValueError("Mode must be 'road' or 'air'")
 
     # Check if a breakdown occurs
     if np.random.binomial(1, breakdown_prob):
-        delay = pert_sample(worst, highly_likely, best)
+        delay = pert_sample(best, highly_likely, worst)
         return round(delay, 4)
     return 0
 
 
-def transport_time(loc_A, loc_B, mode="road"):
+def transport_time(loc_A, loc_B, mode):
     """
     Calculates transport time (in hours) from loc_A to loc_B.
     Uses PERT-sampled speed and geodesic distance.
@@ -127,9 +127,9 @@ def transport_time(loc_A, loc_B, mode="road"):
 
     # Sample speed using PERT
     if mode == "road":
-        speed_kmph = pert_sample(48, 80, 100) #we have citation for this
+        speed_kmph = pert_sample(100, 80, 48) #we have citation for this
     elif mode == "air":
-        speed_kmph = pert_sample(600, 700, 800)  #no citation for this
+        speed_kmph = pert_sample(800, 700, 600)  #no citation for this
     else:
         raise ValueError("Unsupported mode: use 'road' or 'air'.")
 
@@ -147,12 +147,42 @@ def simulate_disturbance():
 
     # Check if disturbance occurs
     if np.random.binomial(1, disturbance_prob):
-        duration = pert_sample(2, 6, 48)  # best-mostlikely-worstDuration in hours
+        duration = pert_sample(2, 6, 48)  # best-most likely-worstDuration in hours
         severity = pert_sample(0.1,0.2, 1)  # Severity as a multiplier
         delay = duration * severity
         return round(delay, 2)
 
     return 0
 
+def simulator(crash, breakdown, disturbance, mode):
+    """
+    this fn calls other simulators based on the input parameters.
+    TODO: call visualize_sim()
+    :param crash:
+    :param breakdown:
+    :param disturbance:
+    :return:
+    """
+    if crash == 0 and breakdown == 0 and disturbance == 0:
+        track_A, track_B = valid_tracks()
+        base_time = transport_time(track_A, track_B, mode)
+
+        print(f"--- BASELINE SCENARIO ---")
+        print(f"From: {track_A} → To: {track_B}")
+        print(f"Transport time (no crash, no delays): {base_time} hrs")
+        return base_time
 
 if __name__ == "__main__":
+    # HYPOTHESIS 1: Baseline scenario - ideal case
+    simulator(crash=0, breakdown=0, disturbance=0, mode="road")
+    simulator(crash=0, breakdown=0, disturbance=0, mode="air")
+
+    #HYPOTHESIS 2: simulating crash at circuit A, and spare parts being fabricated and dent from HQ to circuit B
+    simulator(crash=1, breakdown=0, disturbance=0,mode="road")
+    simulator(crash=1, breakdown=0, disturbance=0, mode="air")
+    simulator(crash=1, breakdown=1, disturbance=0, mode="road")
+    simulator(crash=1, breakdown=1, disturbance=0, mode="air")
+
+    #HYPOTHESIS 3: simulating the occurrence of disturbance during normal transport
+    simulator(crash=0, breakdown=0, disturbance=1, mode="road")
+    simulator(crash=0, breakdown=0, disturbance=1, mode="air")
