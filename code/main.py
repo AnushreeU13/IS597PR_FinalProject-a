@@ -52,7 +52,7 @@ def calculate_distance(lat1, lon1, lat2, lon2) -> float:
     distance_km = distance_meters / 1000
     return distance_km
 
-def simulate_crash()-> float:
+def simulate_crash(track_B, mode, breakdown=False, disturbance=False)-> float:
     """
     This function is meant to return the total time it takes to fabricate a new part at the HQ, transport it to track location B
     :return: time, float
@@ -61,11 +61,14 @@ def simulate_crash()-> float:
     Car_status = None
 
     fabrication_time = fabrication()
-    disturbance_delay = simulate_disturbance()
-    breakdown_delay = simulate_breakdown()
+    delivery_time = transport_time("HQ", track_B, mode)
+    total_delay = fabrication_time + delivery_time
 
-    total_delay = fabrication_time + disturbance_delay + breakdown_delay + transport_time(HQ,Track_B)
-    return round(total_delay,4)
+    if disturbance:
+        total_delay += simulate_disturbance()
+    if breakdown:
+        total_delay += simulate_breakdown(mode)
+    return round(total_delay, 4)
 
 def fabrication():
     """
@@ -76,7 +79,7 @@ def fabrication():
     fabrication_time = pert_sample(12, 18, 36)
     return fabrication_time
 
-def simulate_breakdown(mode="road"):
+def simulate_breakdown(mode):
     """
     This function simulates breakdown of the carrier -  trucks when roadways, cargo plane when airways
     :param mode: road or air
@@ -154,6 +157,19 @@ def simulate_disturbance():
 
     return 0
 
+def valid_tracks():
+    """
+    Picks a valid pair of consecutive F1 circuits based on the 2025 season order.
+    Track A is randomly chosen from the first N-1 circuits.
+    Track B is the next track in order.
+    :return: (track_A, track_B)
+    """
+    circuit_names = list(circuit_dict.keys())
+    index = random.randint(0, len(circuit_names) - 2)
+    track_A = circuit_names[index]
+    track_B = circuit_names[index + 1]
+    return track_A, track_B
+
 def simulator(crash, breakdown, disturbance, mode):
     """
     this fn calls other simulators based on the input parameters.
@@ -163,6 +179,10 @@ def simulator(crash, breakdown, disturbance, mode):
     :param disturbance:
     :return:
     """
+    track_A, track_B = valid_tracks()
+    total_time = 0
+    log = {}
+
     if crash == 0 and breakdown == 0 and disturbance == 0:
         track_A, track_B = valid_tracks()
         base_time = transport_time(track_A, track_B, mode)
@@ -171,6 +191,13 @@ def simulator(crash, breakdown, disturbance, mode):
         print(f"From: {track_A} → To: {track_B}")
         print(f"Transport time (no crash, no delays): {base_time} hrs")
         return base_time
+
+    elif crash == 1:
+        total_time = simulate_crash()
+        print(f"Total time after crash, delivery: {total_time} hrs")
+        return total_time
+
+
 
 if __name__ == "__main__":
     # HYPOTHESIS 1: Baseline scenario - ideal case
