@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 from geopy.distance import geodesic
 from geographiclib.geodesic import Geodesic
 import numpy as np
-
-from code.gen_circuit_details import circuit_dict
+from gen_circuit_details import circuit_dict as circuit_dict
 
 
 # PERT function to generate sample
@@ -46,11 +45,12 @@ def calculate_distance(lat1, lon1, lat2, lon2) -> float:
     :param lon1: Race location A longitude
     :param lat2: Race location B latitude
     :param lon2: Race location B longitude
-    :return: floating value that denotes the distance between the two points in meters.
-    TODO: make sure the return value makes sense in meters
+    :return: floating value that denotes the distance between the two points in km.
+    TODO: make sure the return value makes sense in km
     """
     distance_meters = Geodesic.WGS84.Inverse(lat1, lon1, lat2, lon2)['s12']
-    return distance_meters
+    distance_km = distance_meters / 1000
+    return distance_km
 
 def simulate_crash()-> float:
     """
@@ -78,8 +78,8 @@ def fabrication():
 
 def simulate_breakdown(mode="road"):
     """
-
-    :param mode:
+    This function simulates breakdown of the carrier -  trucks when roadways, cargo plane when airways
+    :param mode: road or air
     :return:
     """
     if mode == "road":
@@ -97,24 +97,62 @@ def simulate_breakdown(mode="road"):
         return round(delay, 4)
     return 0
 
-def transport_time(track_A, track_B):
+
+def transport_time(loc_A, loc_B, mode="road"):
     """
-    TODO: incomplete
-    :param track_A:
-    :param track_B:
-    :return:
+    Calculates transport time (in hours) from loc_A to loc_B.
+    Uses PERT-sampled speed and geodesic distance.
+
+    :param loc_A: 'HQ' or name of circuit A
+    :param loc_B: name of circuit B
+    :param mode: 'road' (default), or 'air' if needed later
+    :return: time in hours (float)
     """
-    if track_A == "HQ":
-        TrackB_lat = circuit_dict[trackB]["Latitude"]
-        TrackB_long = circuit_dict[trackB]["Longitude"]
-        dist = calculate_distance(HQ_lat = 52.0406, HQ_long= -0.7594, TrackB_lat, TrackB_long)
+    # HQ coordinates (Milton Keynes)
+    hq_lat, hq_lon = 52.0406, -0.7594
+
+    # Get coordinates for location A
+    if loc_A == "HQ":
+        lat_A, lon_A = hq_lat, hq_lon
+    else:
+        lat_A = circuit_dict[loc_A]["Latitude"]
+        lon_A = circuit_dict[loc_A]["Longitude"]
+
+    # Get coordinates for location B
+    lat_B = circuit_dict[loc_B]["Latitude"]
+    lon_B = circuit_dict[loc_B]["Longitude"]
+
+    # Calculate distance in kilometers
+    distance_km = calculate_distance(lat_A, lon_A, lat_B, lon_B)
+
+    # Sample speed using PERT
+    if mode == "road":
+        speed_kmph = pert_sample(48, 80, 100) #we have citation for this
+    elif mode == "air":
+        speed_kmph = pert_sample(600, 700, 800)  #no citation for this
+    else:
+        raise ValueError("Unsupported mode: use 'road' or 'air'.")
+
+    # Time = distance / speed
+    travel_time_hrs = distance_km / speed_kmph
+    return round(travel_time_hrs, 2)
+
+
+def simulate_disturbance():
+    """
+    Simulates if a disturbance occurs and computes its delay. Returns 0 if no disturbance occurs.
+    If it does, calculates delay = duration × severity factor.
+    """
+    disturbance_prob = 0.1  # 10% chance - put this in the simulator()
+
+    # Check if disturbance occurs
+    if np.random.binomial(1, disturbance_prob):
+        duration = pert_sample(2, 6, 48)  # best-mostlikely-worstDuration in hours
+        severity = pert_sample(0.1,0.2, 1)  # Severity as a multiplier
+        delay = duration * severity
+        return round(delay, 2)
+
+    return 0
+
 
 if __name__ == "__main__":
-    print("PERT Testttt ")
-    min_val, mode_val, max_val = 0.4, 0.8, 1.0
-    for i in range(10):
-        sample = pert_sample(min_val, mode_val, max_val)
-        print(f"Sample {i+1}: {sample:.4f}")
-    print("DONEEEEEEE")
-    dist = calculate_distance(50.4372,5.9714, 47.58222, 19.25111)
-    print(dist)

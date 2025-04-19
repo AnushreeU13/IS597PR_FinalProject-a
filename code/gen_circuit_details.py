@@ -62,4 +62,5 @@ for i, (name, lat, lon) in enumerate(circuits):
         "Distance_From_HQ_meters": distance_hq
     }
 
-print(circuit_dict)
+if __name__ == "__main__":
+    print(circuit_dict)
