@@ -61,8 +61,8 @@ def simulate_crash(track_B, mode, breakdown, disturbance)-> float:
     Car_status = None
 
     fabrication_time = fabrication()
-    delivery_time = transport_time("HQ", track_B, mode)
-    total_delay = fabrication_time + delivery_time
+    #delivery_time = transport_time("HQ", track_B, mode)
+    total_delay = fabrication_time
 
     if disturbance:
         total_delay += simulate_disturbance()
@@ -79,12 +79,13 @@ def fabrication():
     fabrication_time = pert_sample(12, 18, 36)
     return fabrication_time
 
-def simulate_breakdown(mode):
+def simulate_breakdown(track_A, track_B, mode):
     """
     This function simulates breakdown of the carrier -  trucks when roadways, cargo plane when airways
     :param mode: road or air
     :return:
     """
+    delivery_time = transport_time(track_A, track_B, mode)
     if mode == "road":
         breakdown_prob = 0.02
         worst, highly_likely, best = 12, 3, 2  # hours - order is confusing
@@ -97,7 +98,7 @@ def simulate_breakdown(mode):
     # Check if a breakdown occurs
     if np.random.binomial(1, breakdown_prob):
         delay = pert_sample(best, highly_likely, worst)
-        return round(delay, 4)
+        return round((delay+delivery_time), 4)
     return 0
 
 
@@ -192,26 +193,42 @@ def simulator(crash, breakdown, disturbance, mode):
         print(f"Transport time (no crash, no delays): {base_time} hrs")
         return base_time
 
-    elif crash == 1:
-        total_time = simulate_crash(track_B, mode, breakdown, disturbance)
+    elif crash == 1 and disturbance == 0:
+        total_delay = simulate_crash(track_B, mode, breakdown, disturbance)
+        delivery_time = transport_time("HQ", track_B, mode)
+        total_time = total_delay + delivery_time
         print(f"Total time after crash, delivery: {total_time} hrs")
+        return total_time
+
+    elif crash==0 and breakdown==1 and disturbance==0:
+        total_delay = simulate_breakdown(track_A, track_B, mode)
+        delivery_time = transport_time(track_A, track_B, mode)
+        total_time = total_delay + delivery_time
+        print(f"Total time after breakdown, delivery: {total_time} hrs")
         return total_time
 
     else:
         #track_A, track_B = valid_tracks()
-        time = transport_time(track_A, track_B, mode)
-        return time
+        total_delay = simulate_disturbance()
+        delivery_time = transport_time(track_A, track_B, mode)
+        total_time = total_delay + delivery_time
+        print(f"Total time after disturbance, delivery: {total_time} hrs")
+        return total_time
 
 if __name__ == "__main__":
-    # HYPOTHESIS 1: Baseline scenario - ideal case
+    # HYPOTHESIS 0: Baseline scenario - ideal case
     simulator(crash=0, breakdown=0, disturbance=0, mode="road")
     simulator(crash=0, breakdown=0, disturbance=0, mode="air")
 
-    #HYPOTHESIS 2: simulating crash at circuit A, and spare parts being fabricated and dent from HQ to circuit B
+    #HYPOTHESIS 1: simulating crash at circuit A, and spare parts being fabricated and dent from HQ to circuit B
     simulator(crash=1, breakdown=0, disturbance=0,mode="road")
     simulator(crash=1, breakdown=0, disturbance=0, mode="air")
     simulator(crash=1, breakdown=1, disturbance=0, mode="road")
     simulator(crash=1, breakdown=1, disturbance=0, mode="air")
+
+    #HYPOTHESIS 2: simulating the occurrence of breakdown
+    simulator(crash=0, breakdown=1, disturbance=0, mode="air")
+    simulator(crash=0, breakdown=1, disturbance=0, mode="road")
 
     #HYPOTHESIS 3: simulating the occurrence of disturbance during normal transport
     simulator(crash=0, breakdown=0, disturbance=1, mode="road")
