@@ -152,7 +152,7 @@ def simulate_disturbance():
     if np.random.binomial(1, disturbance_prob):
         duration = pert_sample(2, 6, 48)  # best-most likely-worstDuration in hours
         severity = pert_sample(0.1,0.2, 1)  # Severity as a multiplier
-        delay = duration * severity
+        delay = duration * severity + transport_time()
         return round(delay, 2)
 
     return 0
@@ -184,7 +184,7 @@ def simulator(crash, breakdown, disturbance, mode):
     log = {}
 
     if crash == 0 and breakdown == 0 and disturbance == 0:
-        track_A, track_B = valid_tracks()
+        #track_A, track_B = valid_tracks()
         base_time = transport_time(track_A, track_B, mode)
 
         print(f"--- BASELINE SCENARIO ---")
@@ -198,7 +198,9 @@ def simulator(crash, breakdown, disturbance, mode):
         return total_time
 
     else:
-        track_A, track_B = valid_tracks()
+        #track_A, track_B = valid_tracks()
+        time = transport_time(track_A, track_B, mode)
+        return time
 
 if __name__ == "__main__":
     # HYPOTHESIS 1: Baseline scenario - ideal case
