@@ -52,7 +52,7 @@ def calculate_distance(lat1, lon1, lat2, lon2) -> float:
     distance_km = distance_meters / 1000
     return distance_km
 
-def simulate_crash(track_B, mode, breakdown=False, disturbance=False)-> float:
+def simulate_crash(track_B, mode, breakdown, disturbance)-> float:
     """
     This function is meant to return the total time it takes to fabricate a new part at the HQ, transport it to track location B
     :return: time, float
@@ -193,11 +193,12 @@ def simulator(crash, breakdown, disturbance, mode):
         return base_time
 
     elif crash == 1:
-        total_time = simulate_crash()
+        total_time = simulate_crash(track_B, mode, breakdown, disturbance)
         print(f"Total time after crash, delivery: {total_time} hrs")
         return total_time
 
-
+    else:
+        track_A, track_B = valid_tracks()
 
 if __name__ == "__main__":
     # HYPOTHESIS 1: Baseline scenario - ideal case
